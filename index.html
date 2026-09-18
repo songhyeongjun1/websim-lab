@@ -1,0 +1,369 @@
+<title>SiCN 계면 시뮬레이터</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="description" content="이중층 탄소 SiCN × 계면 X선 반응 — 하이브리드 본딩 계면의 가상 실험">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<style>
+:root{
+  --bg:#F2F4F7; --surf:#FFFFFF; --surf2:#F6F8FA; --line:#DCE1E7; --line2:#C5CCD4;
+  --ink:#1B1F25; --ink2:#3D4651; --mute:#6B7480; --mute2:#9AA3AD;
+  --navy:#00447C; --navy2:#2C6DB5; --navybg:#E4EDF7;
+  --gold:#C99A2E; --gold2:#8C6A16; --goldbg:#F7EFD9;
+  --red:#C4553F; --blue:#3B82D6; --green:#3F9068; --grey:#8A94A0;
+  --good:#2F855A; --bad:#B83232;
+  --si:#B6BFC9; --sicn:#3F3A33; --sicn-lo:#CDC7B8; --shell:#D9CAA6; --oxide:#A9CCD6;
+  --m-sio:#1F3A6E; --m-oh:#D4A017; --m-h:#7B8794; --m-db:#B0B7C0; --m-h2o:#4C7BD9; --m-h2:#8FA7C7; --m-void:#8FBF8F;
+  --radius:6px; --sans:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#12161B; --surf:#1A2028; --surf2:#20272F; --line:#2C343D; --line2:#3A434D;
+  --ink:#E8ECF0; --ink2:#C3CAD2; --mute:#98A2AC; --mute2:#6C7680;
+  --navy:#6FA6E6; --navy2:#8FBCEF; --navybg:#1E2E40; --gold:#E0B04A; --gold2:#F0C96E; --goldbg:#3A2F14;
+  --si:#4A5460; --sicn:#D9D2C4; --sicn-lo:#6E685C; --shell:#9A865A; --oxide:#4F7F8B;
+  --m-sio:#8FB3FF; --m-oh:#E6B84A; --m-db:#6B7680; --m-h2o:#7FA7F0; --m-h2:#9FB4CC; --m-void:#79A879; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input{font:inherit;color:inherit}
+h1,h2,h3{margin:0;font-weight:700}
+.num{font-variant-numeric:tabular-nums;font-weight:700}
+/* 뼈대 */
+.shell{display:grid;grid-template-columns:196px 1fr 292px;grid-template-rows:auto 1fr auto;min-height:100%;grid-template-areas:"top top top" "rail main side" "foot foot foot"}
+.top{grid-area:top;display:flex;align-items:center;gap:14px;padding:10px 22px;background:var(--surf);border-bottom:1px solid var(--line)}
+.top .logo{width:34px;height:34px;border-radius:50%;background:var(--navy);display:grid;place-items:center;color:#fff;font-weight:900;font-size:12px;letter-spacing:.02em}
+.top h1{font-size:19px;letter-spacing:-.01em}
+.top .sub{font-size:12px;color:var(--mute);margin-top:-2px}
+.top .spacer{flex:1}
+.telem{font-size:11.5px;color:var(--mute);white-space:nowrap}
+.telem b{color:var(--navy);font-weight:700}
+.worlds{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink2);white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--radius);overflow:hidden;background:var(--surf)}
+.seg button{border:0;background:transparent;padding:4px 10px;cursor:pointer;color:var(--mute);font-size:12px;font-weight:500;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+.badge{font-size:11.5px;padding:4px 10px;border-radius:999px;background:var(--goldbg);color:var(--gold2);font-weight:700;white-space:nowrap}
+.btn{border:1px solid var(--line2);background:var(--surf);border-radius:var(--radius);padding:4px 10px;cursor:pointer;font-size:12px;font-weight:500;color:var(--ink2)}
+.btn:hover{border-color:var(--navy);color:var(--navy)}
+.rail{grid-area:rail;background:var(--surf);border-right:1px solid var(--line);padding:14px 10px}
+.rail .cap{font-size:11px;color:var(--mute2);padding:0 10px 6px}
+.rail button{display:grid;grid-template-columns:20px 1fr;gap:8px;align-items:start;text-align:left;border:0;background:transparent;padding:9px 10px;border-radius:var(--radius);cursor:pointer;color:var(--ink2);width:100%}
+.rail button .k{font-size:12px;color:var(--mute2);font-weight:700;padding-top:2px}
+.rail button .n{font-weight:700;font-size:14px;color:var(--ink)}
+.rail button .d{display:block;font-size:11.5px;color:var(--mute);line-height:1.35}
+.rail button[aria-current="true"]{background:var(--navybg);box-shadow:inset 3px 0 0 var(--navy)}
+.rail button[aria-current="true"] .k{color:var(--navy)}
+main{grid-area:main;padding:16px 18px 40px;min-width:0}
+.panel{display:none}.panel[data-active="true"]{display:block}
+/* 조건 띠 */
+.cond{background:var(--surf);border:1px solid var(--line);border-radius:var(--radius);padding:10px 16px 12px;margin-bottom:12px}
+.cond .head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:6px}
+.cond .head h2{font-size:15px}
+.cond .head .desc{font-size:12px;color:var(--mute)}
+.cond .head .live{margin-left:auto;font-size:13px;font-weight:700;color:var(--navy);white-space:nowrap}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px;align-items:center}
+.presets .lbl{font-size:11.5px;color:var(--mute);margin-right:4px}
+.presets button{border:1px solid var(--line2);background:var(--surf2);border-radius:999px;padding:3px 11px;font-size:12px;font-weight:500;cursor:pointer;color:var(--ink2)}
+.presets button:hover{border-color:var(--navy);color:var(--navy)}
+.presets button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.ctls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 22px}
+.ctl label{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--mute)}
+.ctl label .v{font-size:13px;color:var(--ink);font-weight:700}
+.ctl .seg{margin-top:4px}
+.ctl.off{opacity:.4}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent;margin:0;--acc:var(--navy)}
+.ctl.gold input[type=range]{--acc:var(--gold)} .ctl.red input[type=range]{--acc:var(--red)}
+input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px;background:linear-gradient(90deg,var(--acc) 0 var(--p,50%),var(--line2) var(--p,50%) 100%)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--acc);margin-top:-6.5px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+input[type=range]::-moz-range-track{height:5px;border-radius:3px;background:var(--line2)}
+input[type=range]::-moz-range-progress{height:5px;border-radius:3px;background:var(--acc)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--acc)}
+input[type=range]:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* 그림 */
+.grid{display:grid;gap:12px;margin-bottom:12px}
+.g2{grid-template-columns:1.25fr 1fr} .g11{grid-template-columns:1fr 1fr}
+.fig{background:var(--surf);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px 10px;min-width:0}
+.fig h3{font-size:13.5px;text-align:center;color:var(--ink);margin-bottom:2px}
+.fig h3 small{display:block;font-weight:500;font-size:12px;color:var(--mute);margin-top:1px}
+.fig svg{display:block;width:100%;height:auto}
+.fig .cap{font-size:12px;color:var(--mute);text-align:center;margin-top:6px}
+.fig .cap b{color:var(--ink2)}
+.keyrow{display:flex;flex-wrap:wrap;gap:6px 10px;justify-content:center;margin-top:8px}
+.key{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:4px;padding:3px 9px;font-size:12px;background:var(--surf2)}
+.key i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.key i.bar{width:4px;height:14px;border-radius:2px}
+.key i.ring{background:transparent;border:2px solid var(--m-db)}
+.key b{font-weight:700}
+.verdict{background:var(--navybg);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;font-size:13px;line-height:1.6;color:var(--ink)}
+.verdict.gold{background:var(--goldbg)}
+.verdict b{font-weight:700}
+.v3d{position:relative;min-height:340px;border-radius:var(--radius);overflow:hidden;background:linear-gradient(180deg,#F7F9FB,#E9EEF3)}
+.v3d canvas{width:100%;display:block}
+.v3d .hint{position:absolute;left:10px;bottom:6px;font-size:11px;color:var(--mute2)}
+.v3dwrap{position:relative}
+.v3dkey{position:absolute;left:10px;top:10px;z-index:3;pointer-events:none;max-width:210px;background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:11px;line-height:1.3;display:flex;flex-direction:column;gap:3px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.v3dkey .t{font-size:10.5px;color:var(--mute);font-weight:700;letter-spacing:.02em;margin-bottom:1px}
+.v3dkey .r{display:grid;grid-template-columns:11px 1fr;gap:6px;align-items:center}
+.v3dkey .r i{width:11px;height:11px;border-radius:2px;display:inline-block;border:1px solid rgba(0,0,0,.14)}
+.v3dkey .r i.dot{border-radius:50%}
+.v3dkey .r b{display:block;color:var(--ink);font-weight:600;white-space:nowrap}
+.v3dkey .r small{display:none}
+.v3dkey .r.show small{display:block;color:var(--mute);white-space:nowrap}
+.v3dkey .note{display:none}
+.v3dbadge{position:absolute;right:10px;top:10px;z-index:3;pointer-events:none;background:rgba(255,248,225,.94);border:1px solid #E5CF8A;border-radius:6px;padding:4px 10px;font-size:11px;color:var(--mute);text-align:right;line-height:1.2;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.v3dbadge b{display:block;font-size:19px;font-weight:900;color:var(--gold2)}
+.v3dbadge:empty{display:none}
+details.more{margin:4px 0 12px;border:1px dashed var(--line2);border-radius:var(--radius);padding:6px 12px}
+details.more>summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--navy);list-style:none}
+details.more>summary::before{content:'\25B8  ';color:var(--mute)} details.more[open]>summary::before{content:'\25BE  '}
+details.more[open]>summary{margin-bottom:10px}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 8px}
+.stat3>div{border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;background:var(--surf2)}
+.stat3 .l{font-size:11px;color:var(--mute)} .stat3 .v{font-size:20px;font-weight:900;color:var(--navy)} .stat3 .s{font-size:11px;color:var(--mute)}
+.v3d.beam{min-height:280px;background:radial-gradient(ellipse at 50% 20%,#FFFFFF,#E3E9F0 75%)}
+.v3d.film,.v3d.hero{background:radial-gradient(ellipse at 50% 25%,#FFFFFF,#E6EBF1 75%)}
+.v3d.hero{min-height:360px}
+#beam-block:empty,#film-xsec:empty{display:none}
+/* 표 · KPI */
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:11.5px;color:var(--mute);font-weight:700;background:var(--surf2)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.pw{display:inline-block;min-width:44px;text-align:right;padding:1px 6px;border-radius:3px;font-weight:700}
+.pw.hi{background:var(--navybg);color:var(--navy)} .pw.mid{background:var(--surf2)} .pw.lo{color:var(--mute2)}
+.tag{font-size:10.5px;padding:1px 6px;border-radius:3px;background:var(--surf2);color:var(--mute);white-space:nowrap;font-weight:700}
+.tag.lit{background:var(--navybg);color:var(--navy)} .tag.unk{background:var(--goldbg);color:var(--gold2)}
+.tscroll{overflow-x:auto}
+.decision{background:var(--surf);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px 12px 18px;margin-bottom:10px;border-left:4px solid var(--navy)}
+.decision.gold{border-left-color:var(--gold)} .decision.red{border-left-color:var(--red)} .decision.green{border-left-color:var(--green)}
+.decision h4{margin:0 0 4px;font-size:14px}
+.decision p{margin:0;font-size:12.5px;color:var(--ink2);line-height:1.6}
+.chain{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.chain div{padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surf2);font-size:12.5px;line-height:1.45;position:relative}
+.chain div b{display:block;font-size:13px;margin-bottom:2px;color:var(--navy)}
+.chain div .k{font-size:10.5px;color:var(--mute2);font-weight:700}
+.pins td{vertical-align:middle} .pins tr.on{background:var(--goldbg)} .pins td.ctl2{min-width:170px}
+/* 오른쪽 수치 레일 */
+.side{grid-area:side;background:var(--surf);border-left:1px solid var(--line);padding:14px 16px;font-size:12.5px;position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto}
+.side h3{font-size:14px;margin-bottom:6px}
+.side .grp{margin:12px 0 4px;font-size:11.5px;color:var(--navy);font-weight:700;border-bottom:1px solid var(--line);padding-bottom:3px}
+.side .row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dotted var(--line)}
+.side .row span:first-child{color:var(--mute)}
+.side .row span:last-child{font-weight:700;white-space:nowrap}
+.side .row span:last-child small{font-weight:400;color:var(--mute);margin-left:3px}
+.foot{grid-area:foot;padding:8px 22px;border-top:1px solid var(--line);background:var(--surf);font-size:12px;color:var(--mute);display:flex;justify-content:space-between}
+@keyframes beam{from{stroke-dashoffset:0}to{stroke-dashoffset:-26}}
+.beam{animation:beam 1.4s linear infinite}
+@media (prefers-reduced-motion:reduce){.beam{animation:none}}
+@media (max-width:1280px){.shell{grid-template-columns:196px 1fr;grid-template-areas:"top top" "rail main" "foot foot"} .side{display:none}}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr;grid-template-areas:"top" "rail" "main" "foot"}
+  .rail{display:flex;overflow-x:auto;gap:2px;padding:6px 10px;border-right:0;border-bottom:1px solid var(--line)} .rail .cap{display:none}
+  .rail button{grid-template-columns:auto;white-space:nowrap;width:auto;padding:6px 10px} .rail button .d{display:none}
+  main{padding:12px 14px 32px} .g2,.g11{grid-template-columns:1fr} .telem{display:none} .top .sub{display:none}
+  .top{flex-wrap:wrap;gap:8px 10px;padding:8px 12px} .top .spacer{display:none} .badge{display:none} .worlds{flex:1 1 100%;justify-content:space-between}
+  .rail{flex-wrap:nowrap;width:100%;max-width:100vw}
+}
+.rail{min-width:0}
+</style>
+
+<div class="shell">
+  <header class="top">
+    <div class="logo">MJU</div>
+    <div><h1>SiCN 접합 계면 X선 시뮬레이터</h1><div class="sub">명지대학교 산학협력 · 아이디어 1 예행연습 — 이중층 탄소(A) × 계면 X선 반응(B)</div></div>
+    <div class="spacer"></div>
+    <div class="telem" id="telem">준비</div>
+    <div class="worlds"><span>미지수 재추첨</span><div class="seg" id="worldsSeg" title="미지수 20개를 범위 안에서 몇 벌 다시 뽑나 — 승률 오차 ≈ ±50/√N %p"><button data-n="150">150</button><button data-n="400" aria-pressed="true">400</button><button data-n="1500">1.5k</button><button data-n="5000">5k</button></div><button class="btn" id="reseed">다시 뽑기</button></div>
+    <span class="badge">● 생성 데이터</span>
+  </header>
+
+  <nav class="rail" aria-label="화면">
+    <div class="cap">화면</div>
+    <button data-p="intro" aria-current="true"><span class="k">1</span><span><span class="n">개요</span><span class="d">무엇을 하는 프로그램인가</span></span></button>
+    <button data-p="beam"><span class="k">2</span><span><span class="n">광자 수송</span><span class="d">조사 조건 → 계면 선량</span></span></button>
+    <button data-p="film"><span class="k">3</span><span><span class="n">막 구조</span><span class="d">탄소 · 이중층 → 계면 화학</span></span></button>
+    <button data-p="iface"><span class="k">4</span><span><span class="n">계면 반응</span><span class="d">선량 · 열처리 → 결합 상태</span></span></button>
+    <button data-p="cross"><span class="k">5</span><span><span class="n">교차 A×B</span><span class="d">이중층에 X선을 쏘면</span></span></button>
+    <button data-p="exp"><span class="k">6</span><span><span class="n">실험 설계</span><span class="d">몇 장이면 갈리나</span></span></button>
+    <button data-p="out"><span class="k">7</span><span><span class="n">결론 · 근거</span><span class="d">무엇을 정했나 · 실측 반영</span></span></button>
+    <button data-p="ml"><span class="k">8</span><span><span class="n">기계학습 판독</span><span class="d">측정 → 갈래 · 계면 물 역산</span></span></button>
+  </nav>
+
+  <main>
+    <!-- 1 개요 -->
+    <section class="panel" id="p-intro" data-active="true">
+      <div class="cond"><div class="head"><h2>이 프로그램이 하는 일</h2><span class="desc">실험을 하기 전에 실험을 돌려 본다 — 조건을 넣으면 계면이 계산되고, 미지수를 수백 벌 다시 뽑아 예측의 폭을 같이 낸다</span></div>
+        <div class="chain" id="chain"></div></div>
+      <div class="fig" style="margin-bottom:12px"><h3>접합 웨이퍼를 잘라 벌리면<small>실리콘 · SiCN 벌크 · 저탄소 껍질 · 접합 계면 — X선이 위에서 내려온다 · 드래그로 돌린다</small></h3><div class="v3dwrap"><div class="v3d hero" id="v3d-intro"><div class="hint">지금 3·4번 화면 설정 그대로 · 드래그 회전 · 휠 줌</div></div><div class="v3dkey" id="v3d-intro-key"></div><div class="v3dbadge" id="v3d-intro-badge"></div></div></div>
+      <div class="grid g11">
+        <div class="fig"><h3>두 축<small>슬라이더로 조절하는 것</small></h3><div id="intro-axes"></div></div>
+        <div class="fig"><h3>화면 차례<small>번호 순서가 실험 순서다</small></h3><div id="intro-flow"></div></div>
+      </div>
+      <div class="verdict" id="intro-verdict"></div>
+    </section>
+
+    <!-- 2 광자 수송 -->
+    <section class="panel" id="p-beam">
+      <div class="cond"><div class="head"><h2>조사 조건</h2><span class="desc">슬라이더를 놓으면 몬테카를로(NIST 감쇠계수, 광자 2,500개)가 다시 돈다 — 미리 구운 값이 아니다</span><span class="live" id="beam-live"></span></div>
+        <div class="presets" id="pre-beam"></div>
+        <div class="ctls">
+          <div class="ctl"><label>관전압 <span class="v" id="v-kvp">100 kVp</span></label><input type="range" id="kvp" min="60" max="160" step="10" value="100"></div>
+          <div class="ctl"><label>계면 위 실리콘 두께 <span class="v" id="v-top">500 µm</span></label><input type="range" id="top" min="100" max="775" step="25" value="500"></div>
+          <div class="ctl"><label>여과판 (저에너지 차단) <span class="v" id="v-cut">없음 · 12 keV</span></label><div class="seg" id="cutSeg"><button data-v="12" aria-pressed="true">없음 12</button><button data-v="25">Al 25</button><button data-v="40">Cu 40</button></div></div>
+          <div class="ctl gold"><label>입사면 선량률 <span class="v" id="v-rate">36 Gy/s</span></label><input type="range" id="rate" min="0" max="60" step="1" value="36"></div>
+        </div></div>
+      <div class="grid g2">
+        <div>
+          <div class="fig" style="margin-bottom:12px"><h3>시료와 X선<small>광자는 몬테카를로가 낸 흡수 깊이에서 터지고(붉은 섬광), 통과분만 계면에 닿는다 · 드래그로 돌린다</small></h3><div class="v3dwrap"><div class="v3d beam" id="v3d-beam"><div class="hint" id="beam-block-hint"></div></div><div class="v3dkey" id="v3d-beam-key"></div><div class="v3dbadge" id="v3d-beam-badge"></div></div><div id="beam-block"></div></div>
+          <div class="fig"><h3>적층 단면과 광자 궤적<small>선 색 = 광자 에너지 · 굵기 = 남은 에너지 · 점 = 광전흡수 자리</small></h3><div id="beam-paths"></div><div class="keyrow"><span class="key"><i style="background:var(--red)"></i>12–25 keV</span><span class="key"><i style="background:var(--gold)"></i>25–45 keV</span><span class="key"><i style="background:var(--blue)"></i>45 keV 이상</span><span class="key"><i style="background:var(--red);width:8px;height:8px"></i>광전흡수 지점</span></div><div class="cap">계면 막은 두께를 과장해 그렸다 (실제 비율은 이 그림의 2,500분의 1)</div></div>
+        </div>
+        <div>
+          <div class="fig" style="margin-bottom:12px"><h3>깊이에 따른 선량<small>계면까지 얼마나 남는가</small></h3><div id="beam-depth"></div></div>
+          <div class="fig"><h3>목표 선량까지 걸리는 시간<small>선량률이 지금 값(세로선)일 때</small></h3><div id="beam-time"></div></div>
+        </div>
+      </div>
+      <div class="verdict" id="beam-verdict"></div>
+    </section>
+
+    <!-- 3 막 구조 -->
+    <section class="panel" id="p-film">
+      <div class="cond"><div class="head"><h2>막 구조</h2><span class="desc">벌크 SiCN 위에 저탄소 껍질을 몇 nm 얹는 이중층 — 계면 화학은 껍질이, 물 흡수는 벌크가 맡는다</span><span class="live" id="film-live"></span></div>
+        <div class="presets" id="pre-film"></div>
+        <div class="ctls">
+          <div class="ctl gold"><label>벌크 탄소 <span class="v" id="v-cb">38 %</span></label><input type="range" id="cb" min="14" max="38" step="2" value="38"></div>
+          <div class="ctl"><label>구조 <span class="v" id="v-shell">이중층</span></label><div class="seg" id="shellSeg"><button data-v="1" aria-pressed="true">이중층</button><button data-v="0">단층</button></div></div>
+          <div class="ctl gold" id="ctl-ci"><label>껍질 탄소 <span class="v" id="v-ci">14 %</span></label><input type="range" id="ci" min="14" max="34" step="2" value="14"></div>
+          <div class="ctl gold" id="ctl-ts"><label>껍질 두께 <span class="v" id="v-ts">5 nm</span></label><input type="range" id="ts" min="1" max="40" step="1" value="5"></div>
+          <div class="ctl"><label>증착 온도 <span class="v" id="v-tdep">350 ℃</span></label><div class="seg" id="tdepSeg"><button data-v="180">180 ℃</button><button data-v="350" aria-pressed="true">350 ℃</button></div></div>
+          <div class="ctl red"><label>열처리 온도 <span class="v" id="v-T">250 ℃</span></label><input type="range" id="T" min="150" max="300" step="10" value="250"></div>
+          <div class="ctl red"><label>열처리 시간 <span class="v" id="v-min">120 분</span></label><input type="range" id="min" min="10" max="120" step="10" value="120"></div>
+        </div></div>
+      <div class="grid g2">
+        <div class="fig"><h3>접합 뒤 계면 — 층 블록을 잘라 벌린 단면<small>층은 축척이 아니다 — 막 200 nm, 껍질과 계면은 수 nm · 드래그로 돌린다</small></h3><div class="v3dwrap"><div class="v3d film" id="v3d-film"><div class="hint">앞오른쪽 1/4을 잘라 냈다 · 드래그 회전</div></div><div class="v3dkey" id="v3d-film-key"></div><div class="v3dbadge" id="v3d-film-badge"></div></div><div id="film-xsec"></div><div class="keyrow" id="film-key"></div></div>
+        <div>
+          <div class="fig" style="margin-bottom:12px"><h3>같은 조건의 세 시편<small>이중층 · 벌크만 단층 · 껍질만 단층 — 수염은 미지수 재추첨 25~75 %</small></h3><div id="film-cmp"></div></div>
+          <div class="fig"><h3>껍질 두께를 바꾸면<small>지금 벌크·열처리에서 — 점은 현재 설정</small></h3><div id="film-curve"></div></div>
+        </div>
+      </div>
+      <div class="grid g11">
+        <div class="fig"><h3>껍질 지도 — 탄소 × 두께<small id="film-map-sub">보이드 % (세상 중앙)</small><span class="seg" id="mapMetric" style="margin:6px auto 0;display:inline-flex"><button data-v="void" aria-pressed="true">보이드</button><button data-v="dcb">접합에너지</button><button data-v="win">단층을 이기는 비율</button></span></h3><div id="film-map"></div></div>
+        <div class="fig"><h3>왜 예측이 갈리나 — 물 침투 길이<small>점 하나 = 미지수 한 벌 · 세로선 = 껍질 두께</small></h3><div id="film-lw"></div><div class="cap">껍질보다 물이 깊이 들어가야(오른쪽) 벌크가 물을 받는다 — 이 값은 아무도 안 쟀고 <b>TDS로 잰다</b></div></div>
+      </div>
+      <div class="verdict gold" id="film-verdict"></div>
+    </section>
+
+    <!-- 4 계면 반응 -->
+    <section class="panel" id="p-iface">
+      <div class="cond"><div class="head"><h2>계면 조건</h2><span class="desc">선량·갈래·열처리를 바꾸면 계면 결합이 그 자리에서 다시 계산된다 — 막은 3번 화면 설정 그대로</span><span class="live" id="iface-live"></span></div>
+        <div class="presets" id="pre-iface"></div>
+        <div class="ctls">
+          <div class="ctl"><label>X선 흡수선량 (계면) <span class="v" id="v-dose">30 kGy</span></label><input type="range" id="dose" min="0" max="11" step="1" value="4"></div>
+          <div class="ctl"><label>갈래 (조사와 열처리의 순서) <span class="v" id="v-lane">A — X선 → 열처리</span></label><div class="seg" id="laneSeg"><button data-v="A" aria-pressed="true">A</button><button data-v="B">B</button><button data-v="C">C</button><button data-v="D1">D1</button><button data-v="D2">D2</button></div></div>
+          <div class="ctl red"><label>열처리 온도 <span class="v" id="v-T2">250 ℃</span></label><input type="range" id="T2" min="150" max="300" step="10" value="250"></div>
+          <div class="ctl red"><label>열처리 시간 <span class="v" id="v-min2">120 분</span></label><input type="range" id="min2" min="10" max="120" step="10" value="120"></div>
+        </div></div>
+      <div class="grid g2">
+        <div class="fig"><h3>계면을 확대하면 — 붙은 결합과 못 붙은 결합<small>드래그로 돌리고 휠로 당긴다 · 위 막을 들어 올려 계면을 본다</small></h3><div class="v3dwrap"><div class="v3d" id="v3d"><div class="hint">글리프 하나 ≈ 6×10¹² cm⁻² · 드래그 회전</div></div><div class="v3dkey" id="v3d-key"></div><div class="v3dbadge" id="v3d-badge"></div></div>
+          <div class="keyrow" id="iface-key"></div>
+          <div class="cap" id="iface-cap"></div></div>
+        <div>
+          <div class="fig" style="margin-bottom:12px"><h3>선량에 따른 접합에너지 — 갈래 5종<small>띠 = 선택한 갈래의 미지수 25~75 %</small></h3><div id="iface-dose"></div></div>
+          <div class="fig"><h3>계면 상태 — 개/cm²<small>조사 전(연한 막대) → 지금(진한 막대)</small></h3><div id="iface-state"></div></div>
+        </div>
+      </div>
+      <div class="grid g11">
+        <div class="fig"><h3>X선 이득이 잡음 위인가<small>미지수 세상 분포 · 세로선 = 전단 시험 잡음</small></h3><div id="iface-hist"></div></div>
+        <div class="fig"><h3>최적 선량은 미결합손 면밀도가 정한다<small>점 = 세상 · 선 = 구간 중앙 · ESR 한 번의 값어치</small></h3><div id="iface-best"></div></div>
+      </div>
+      <div class="fig" style="margin-bottom:12px"><h3>아레니우스 가속계수 — 신뢰성공학의 가속수명시험 문법으로<small>축합 반응 활성화 에너지 0.85 eV · AF = exp[Eₐ/k · (1/T₁ − 1/T₂)]</small></h3><div id="iface-arr"></div></div>
+      <div class="verdict" id="iface-verdict"></div>
+    </section>
+
+    <!-- 5 교차 -->
+    <section class="panel" id="p-cross">
+      <div class="cond"><div class="head"><h2>교차 — 이중층에 X선을 쏘면</h2><span class="desc">3번 화면의 막에 4번 화면의 X선을 얹는다. 질문 둘: 껍질을 씌운 막이 X선을 더 잘 받는가, 저온(180 ℃) 증착막의 손실을 X선이 메우는가</span><span class="live" id="cross-live"></span></div>
+        <div class="presets" id="pre-cross"></div></div>
+      <div class="grid g11">
+        <div class="fig"><h3>세 시편 × 조사 유무<small>연한 막대 무조사 · 진한 막대 X선 → 열처리</small></h3><div id="cross-bars"></div></div>
+        <div class="fig"><h3>180 ℃ 막의 손실을 X선이 메우는가<small>Nagano 2020: 저온 막은 고온 막의 61 %</small></h3><div id="cross-recover"></div></div>
+      </div>
+      <div class="grid g11">
+        <div class="fig"><h3>선량 × 껍질 탄소 — 접합에너지<small>벌크·두께·열처리는 3번 설정 · 세상 중앙</small></h3><div id="cross-map"></div></div>
+        <div class="fig"><h3>어느 미지수가 갈림을 만드나<small>「이중층+X선 − 벌크 단층」을 미지수로 설명한 몫</small></h3><div id="cross-sens"></div></div>
+      </div>
+      <div class="verdict" id="cross-verdict"></div>
+    </section>
+
+    <!-- 6 실험 설계 -->
+    <section class="panel" id="p-exp">
+      <div class="cond"><div class="head"><h2>실험 설계 — 몇 장이면 갈리나</h2><span class="desc">미지수 세상마다 웨이퍼(로트 편차)와 쿠폰(장비 잡음)을 뽑아 가상 실험을 반복, 유의수준 α에서 맞는 방향으로 기각되는 비율 = 검정력. 탄소·증착·껍질은 웨이퍼 단위, 열처리·X선은 웨이퍼 안</span></div>
+        <div class="presets" id="pre-exp"></div>
+        <div class="ctls">
+          <div class="ctl"><label>조성당 웨이퍼 <span class="v" id="v-nw">3 장</span></label><input type="range" id="nw" min="1" max="6" step="1" value="3"></div>
+          <div class="ctl"><label>조건당 쿠폰 <span class="v" id="v-nr">4 개</span></label><input type="range" id="nr" min="1" max="8" step="1" value="4"></div>
+          <div class="ctl"><label>로트 편차 σ <span class="v" id="v-slot">15 %</span></label><input type="range" id="slot" min="5" max="40" step="5" value="15"></div>
+          <div class="ctl"><label>유의수준 α <span class="v" id="v-alpha">0.05</span></label><div class="seg" id="alphaSeg"><button data-v="0.01">0.01</button><button data-v="0.05" aria-pressed="true">0.05</button><button data-v="0.10">0.10</button></div></div>
+        </div></div>
+      <div class="fig" style="margin-bottom:12px"><h3>예측별 · 측정별 검정력 (1 − β)<small id="exp-hint"></small></h3><div class="tscroll" id="power-table"></div></div>
+      <div class="grid g11">
+        <div class="fig"><h3>웨이퍼 장수가 지렛대다<small>선택한 예측 · 위 = 지금 설정의 오류 분해</small></h3><div class="stat3" id="exp-errs"></div><div id="power-curve"></div></div>
+        <div class="fig"><h3>파일럿 격자 제안<small>완전요인과 비교</small></h3><div id="pilot"></div></div>
+      </div>
+      <div class="verdict" id="exp-verdict"></div>
+      <details class="more"><summary>더 보기 — 검정력 곡선 · 분할구 설계 · 효과 문턱</summary>
+        <div class="ctls" style="margin-bottom:10px"><div class="ctl"><label>효과 문턱 (이보다 작으면 「효과 없음」) <span class="v" id="v-rmin">8 %</span></label><input type="range" id="rmin" min="0" max="20" step="2" value="8"></div></div>
+        <div class="grid g11">
+          <div class="fig"><h3>검정력 곡선<small>참 효과 크기별 검출 확률 — OC 곡선의 보수</small></h3><div id="exp-oc"></div></div>
+          <div class="fig"><h3>이 실험은 분할구 설계(split-plot)다<small>웨이퍼 단위 인자와 쿠폰 단위 인자의 오차항이 다르다</small></h3><div id="exp-split"></div></div>
+        </div>
+      </details>
+    </section>
+
+    <!-- 7 결론 · 근거 -->
+    <section class="panel" id="p-out">
+      <div class="cond"><div class="head"><h2>이 예행연습이 정한 것</h2><span class="desc">아래 숫자는 지금 설정으로 계산된 값이다. 실측이 아니라 실험 전 예측이다</span></div></div>
+      <div class="grid g2">
+        <div id="decisions"></div>
+        <div>
+          <div class="fig" style="margin-bottom:12px"><h3>측정의 값어치<small>이 값을 ±10 %로 재면 네 예측의 폭이 평균 몇 % 주나</small></h3><div id="rank"></div></div>
+          <div class="fig"><h3>고정한 값으로 줄어든 폭<small id="shrink-hint"></small></h3><div id="shrink"></div></div>
+        </div>
+      </div>
+      <div class="fig pins" style="margin-bottom:12px"><h3>미지수 20개 — 범위 · 근거 · 실측값으로 못 박기<small>「잰 값」을 켜면 모든 화면이 그 세상들로 다시 계산된다 — 근사 베이즈 계산(ABC)의 기각 표집: 실측과 맞는 세상만 남긴다</small></h3><div class="tscroll" id="pins-table"></div></div>
+      <div class="grid g11">
+        <div class="fig"><h3>문헌</h3><div id="lit"></div></div>
+        <div class="fig"><h3>모형이 못 담는 것</h3><div id="honest"></div></div>
+      </div>
+    </section>
+    <!-- 8 기계학습 -->
+    <section class="panel" id="p-ml">
+      <div class="cond"><div class="head"><h2>기계학습 판독 — 측정만 보고 무엇을 알아낼 수 있나</h2><span class="desc">미지수를 다시 뽑아 만든 세상마다 다섯 갈래 시편을 만들고 장비 잡음을 얹어 학습 데이터를 만든다. 실측이 들어오면 같은 코드에 실측을 넣으면 된다</span><span class="live" id="ml-live"></span></div>
+        <div class="presets" id="pre-ml"></div>
+        <div class="ctls">
+          <div class="ctl"><label>학습 세상 수 <span class="v" id="v-mlw">200</span></label><input type="range" id="mlw" min="80" max="400" step="40" value="200"></div>
+          <div class="ctl"><label>나무 수 <span class="v" id="v-mlt">30</span></label><input type="range" id="mlt" min="10" max="80" step="10" value="30"></div>
+          <div class="ctl"><label>조건당 쿠폰 <span class="v" id="v-mlr">2</span></label><input type="range" id="mlr" min="1" max="4" step="1" value="2"></div>
+          <div class="ctl"><label>&nbsp;</label><button class="btn" id="ml-train" style="padding:6px 14px;font-weight:700;color:var(--navy)">학습 다시 (0.5~2초)</button></div>
+        </div></div>
+      <div class="grid g11">
+        <div class="fig"><h3>갈래 분류 — 랜덤포레스트<small>여섯 측정으로 「어느 갈래였나」를 맞힌다 · OOB(out-of-bag) 정확도 · 우연은 20 %</small></h3><div class="stat3" id="ml-acc"></div><div id="ml-accbar"></div></div>
+        <div class="fig"><h3>어느 측정이 갈래를 가르나<small>순열 중요도 — 특징 하나를 섞었을 때 떨어지는 OOB 정확도 (짝쿠폰 차이 모형)</small></h3><div id="ml-imp"></div></div>
+      </div>
+      <div class="grid g11">
+        <div class="fig"><h3>혼동행렬 — 짝쿠폰 차이 모형<small>행 = 참 갈래 · 열 = 예측 · 무조사(D1·D2)끼리, 조사(B)와 무조사가 섞이는 게 정상</small></h3><div id="ml-conf"></div></div>
+        <div class="fig"><h3>계면 물 역산 — kNN 회귀<small>아무도 직접 못 재는 「남은 물」을 여섯 측정에서 되찾는다 · 5겹 교차검증</small></h3><div class="stat3" id="ml-water"></div><div id="ml-wsc"></div></div>
+      </div>
+      <div class="verdict" id="ml-verdict"></div>
+    </section>
+  </main>
+
+  <aside class="side" id="side"><h3>실시간 수치</h3><div id="side-body"></div></aside>
+  <footer class="foot"><span id="foot-l">—</span><span>모형 v5 · 미지수 20개 · 숫자는 예측이지 실측이 아니다</span></footer>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="physics.js"></script>
+<script src="ml.js"></script>
+<script src="viz3d.js"></script>
+<script src="app.js"></script>
