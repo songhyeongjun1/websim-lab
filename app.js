@@ -322,9 +322,18 @@
     const unb = (r) => Math.max(r.silanol - r.siloxane, 0); const made = cur.silanol - cur.base_silanol;
     const th = (cols) => `<thead><tr><th>항목</th>${cols.map((c) => `<th>${c}</th>`).join('')}<th class="d">뜻</th></tr></thead>`;
     const tr = (lab, vals, note, hiIdx, warnIdx) => `<tr><td>${lab}</td>${vals.map((v, i) => `<td class="${i === hiIdx ? 'hi' : ''}${i === warnIdx ? ' warn' : ''}">${v}</td>`).join('')}<td class="d">${note}</td></tr>`;
-    let title = '', body = '';
+    let title = '', body = '', easy = '';
+    const chip = (kind, ar, label, before, after, note, unit) => `<div class="chip ${kind}"><span class="ar">${ar}</span><span class="l">${label}</span><span class="v">${before} → ${after}${unit ? `<small>${unit}</small>` : ''}</span><span class="n">${note}</span></div>`;
+    const pcd = (b, c) => (c / Math.max(b, 1e-30) - 1 >= 0 ? '+' : '') + pc(c / Math.max(b, 1e-30) - 1);
+    const so = (t) => `<div class="so">${t}</div>`;
     if (L === 'A') {
-      title = `<span class="tag a">A</span>X선 ${D} kGy → 열처리 ${S.T} ℃ ${S.min}분 — 무엇이 이득인가`;
+      easy = `<div class="one">열만 주면 원래 있던 실라놀만 붙는다. X선을 먼저 쬐면 <u>붙을 재료</u>가 늘어나고, 열이 그것까지 붙인다.</div><div class="chips">` +
+        chip('good', '↓', '빈자리 (미결합손)', sci(ref.db_left), sci(cur.db_left), 'X선이 만든 •OH가 채웠다 — 열은 못 채우는 자리') +
+        chip('good', '↑', '붙은 결합 (실록산)', sci(ref.siloxane), sci(cur.siloxane), `${pcd(ref.siloxane, cur.siloxane)} — 이게 강도의 원천`) +
+        chip('good', '↑', '접합에너지', f(ref.dcb), f(cur.dcb), `${pcd(ref.dcb, cur.dcb)} (세상 ${pc(gA.lo)}~${pc(gA.hi)})`, 'J/m²') +
+        chip(cur.sam_void > ref.sam_void + 0.02 ? 'bad' : 'same', cur.sam_void > ref.sam_void + 0.005 ? '↑' : '=', '보이드', pc(ref.sam_void, 1), pc(cur.sam_void, 1), '많이 붙은 만큼 물이 더 나왔다 — 막이 받아 주는 만큼만 남는다') +
+        `</div>` + so(`<b>그래서</b> 열만 할 때보다 <b>${pcd(ref.dcb, cur.dcb)}</b> 세게 붙는다. 선량은 빈자리가 다 차는 <b>${eDose} kGy</b>까지만 — 그 위는 수소 기체(H₂)가 되어 보이드로 간다.`);
+      title = `<span class="tag a">A</span>X선 ${D} kGy 먼저, 그다음 열처리 ${S.T} ℃ ${S.min}분 — 뭐가 줄고 뭐가 늘어서 이득인가`;
       body = `<table>${th(['무조사 D1', 'X선 뒤 · 열처리 전', '지금 A'])}<tbody>` +
         tr('미결합손 (ESR)', [sci(ref.db_left), sci(mid.db_left), sci(cur.db_left)], 'X선의 •OH가 채운 자리 — 열은 이걸 못 채운다', 1) +
         tr('실라놀 · 안 붙은 준비물', [sci(unb(ref)), sci(unb(mid)), sci(unb(cur))], `X선이 새로 만든 실라놀 ${sci(made)} — 열처리가 이걸 이어 붙인다`, 1) +
@@ -336,7 +345,14 @@
         `<li><b>선량은 ESR이 정한다.</b> 이 막의 미결합손이 소진되는 선량 ≈ <b>${eDose} kGy</b>(세상 25~75 % ${Math.round(q(eW, 25))}~${Math.round(q(eW, 75))}). 그 위로는 •OH가 갈 곳이 없고 •H끼리 H₂가 되어 보이드로 간다 — 1000 kGy면 보이드 ${pc(c1k.sam_void, 1)}, 접합E ${f(c1k.dcb)}.</li>` +
         `<li><b>열이 뒤따라야 한다.</b> ${S.T} ℃에서 축합 반감기 ${hlT < 60 ? f(hlT, 0) + '분' : f(hlT / 60, 1) + '시간'}, 상온이면 ${hlRT > 1 ? f(hlRT, 0) + '년' : f(hlRT * 365, 0) + '일'} — 같은 선량을 열처리 <i>뒤</i>에 주면(갈래 B) 준비물만 남고 접합E는 ${f(cB.dcb)}로 그대로다. 그 B의 이득은 다른 데 있다(B 버튼).</li></ol>`;
     } else if (L === 'B') {
-      title = `<span class="tag b">B</span>열처리 뒤 X선 ${D} kGy — 접합에너지는 안 변한다. 그러면 무엇이 이득인가`;
+      easy = `<div class="one">열처리가 이미 끝나서 <u>붙일 열이 없다</u> — 강도는 그대로. 대신 계면에 남아 있던 <u>물이 줄어</u> 오래 간다.</div><div class="chips">` +
+        chip('same', '=', '접합에너지', f(ref.dcb), f(cB.dcb), '만든 실라놀을 붙일 열이 없다 (상온에선 ' + f(hlRT, 0) + '년)', 'J/m²') +
+        chip('good', '↓', '남은 물', sci(ref.water_left), sci(cB.water_left), `${pcd(ref.water_left, cB.water_left)} — 벽에 붙은 –OH·Si–H로 바뀜`) +
+        chip('good', '↓', '빈자리 (미결합손)', sci(ref.db_left), sci(cB.db_left), 'X선만 한 일이 ESR에 그대로 찍힌다') +
+        chip(cB.h2 > 0.05 * ref.db_left ? 'bad' : 'same', cB.h2 > 0.05 * ref.db_left ? '↑' : '=', '수소 기체 (H₂)', sci(ref.h2), sci(cB.h2), cB.h2 > 0.05 * ref.db_left ? '빈자리가 다 차서 •H끼리 붙었다 — 선량을 넘겼다' : '거의 없음 — 선량이 알맞다') +
+        chip('good', '↑', '2차 열처리를 붙이면 (C)', f(cB.dcb), f(cC.dcb), `${pcd(cB.dcb, cC.dcb)} — 만든 재료가 그때 붙는다`, 'J/m²') +
+        `</div>` + so(`<b>그래서</b> 지금 당장 세지는 건 없지만, 물이 <b>${pc(wB.m)}</b> 줄어 <b>나중에 덜 터지고(후속 열공정 보이드) · 덜 갈라지고(응력부식) · Cu가 덜 썩는다</b>. 이미 붙은 웨이퍼를 사후에 강화하려면 짧은 2차 열처리를 붙인다(C) → ${f(cC.dcb)} J/m². 선량은 ${eDose} kGy까지만.`);
+      title = `<span class="tag b">B</span>열처리 다 끝난 뒤 X선 ${D} kGy — 강도는 그대로인데 뭐가 이득인가`;
       body = `<table>${th(['무조사 D1', '지금 B', 'B 뒤 2차 열처리 = C'])}<tbody>` +
         tr('남은 물', [sci(ref.water_left), sci(cB.water_left), sci(cC.water_left)], `물 −${pc(1 - cB.water_left / Math.max(ref.water_left, 1))} — 사라진 게 아니라 벽에 붙은 –OH·Si–H가 됨`, 1) +
         tr('실라놀 · 안 붙은 준비물', [sci(unb(ref)), sci(unb(cB)), sci(unb(cC))], '붙일 열이 없어 그대로 남는다 → 2차 열처리가 붙인다', 1) +
@@ -351,7 +367,13 @@
         `<li><b>원래 목적(이미 붙은 웨이퍼를 사후 강화)을 살리는 길 = 갈래 C.</b> B 뒤 ${S.T} ℃ ${S.min}분을 한 번 더 주면 그 준비물이 붙어 접합E ${f(cC.dcb)}(+${pc(gC.m)}). A(${f(cA.dcb)})보다 낮은 건 굳은 계면의 조사 효율 c_pen(0.4~1.0, 미지)과 1차 열처리가 이미 물을 뺀 몫 때문 — 후자는 모형이 아직 안 깎아 C는 상한에 가깝다.</li>` +
         `<li><b>B는 가장 깨끗한 측정이다.</b> 열이 끝난 뒤라 X선이 한 일만 ESR(미결합손 ${sci(ref.db_left)} → ${sci(cB.db_left)})·TDS(물·H₂)에 찍힌다. 7번 「측정의 값어치」 1위 「조사 후 ESR 감소량」을 오염 없이 재는 시편이 B다.</li></ol>`;
     } else if (L === 'C') {
-      title = `<span class="tag a">C</span>열처리 → X선 ${D} kGy → 2차 열처리 — 사후 강화`;
+      easy = `<div class="one">이미 붙여 놓은 웨이퍼에 X선을 쬐고 <u>한 번 더 데운다</u> — B에서 만든 재료가 그때 붙는다.</div><div class="chips">` +
+        chip('good', '↑', '접합에너지', f(ref.dcb), f(cC.dcb), `${pcd(ref.dcb, cC.dcb)} (세상 ${pc(gC.lo)}~${pc(gC.hi)}) · A는 ${f(cA.dcb)}`, 'J/m²') +
+        chip('good', '↑', '붙은 결합 (실록산)', sci(ref.siloxane), sci(cC.siloxane), 'B의 준비물을 2차 열처리가 붙였다') +
+        chip('good', '↓', '남은 물', sci(ref.water_left), sci(cC.water_left), pcd(ref.water_left, cC.water_left)) +
+        chip(cC.sam_void > ref.sam_void + 0.02 ? 'bad' : 'same', '↑', '보이드', pc(ref.sam_void, 1), pc(cC.sam_void, 1), '붙은 만큼 물이 나왔다') +
+        `</div>` + so(`<b>그래서</b> 공정 레시피를 안 바꾸고 <b>뒤에 붙이는 단계</b>로 ${pcd(ref.dcb, cC.dcb)}. A보다 낮고 폭이 넓은 건 굳은 계면의 조사 효율이 미지수라서 — 2차 열처리는 200 ℃ 1~2시간이면 된다.`);
+      title = `<span class="tag a">C</span>열처리 → X선 ${D} kGy → 한 번 더 열처리 — 이미 붙인 웨이퍼를 나중에 강화`;
       body = `<table>${th(['무조사 D1', 'B (2차 열처리 전)', '지금 C', 'A (비교)'])}<tbody>` +
         tr('실라놀 · 안 붙은 준비물', [sci(unb(ref)), sci(unb(cB)), sci(unb(cC)), sci(unb(cA))], 'B에서 남은 준비물을 2차 열처리가 붙인다', 2) +
         tr('실록산 · 붙은 결합', [sci(ref.siloxane), sci(cB.siloxane), sci(cC.siloxane), sci(cA.siloxane)], '굳은 계면이라 조사 효율 c_pen(0.4~1.0)만큼만', 2) +
@@ -362,6 +384,11 @@
         `<li><b>A보다 낮은 이유 둘.</b> (1) 굳은 계면의 조사 효율 c_pen — 문헌 없는 미지수라 폭이 넓다(${pc(gC.lo)}~${pc(gC.hi)}). (2) 1차 열처리가 계면 물을 이미 뺐으니 방사분해 재료가 적다 — 모형은 이 감소를 아직 안 깎아 지금 값은 상한이다. 열처리 후 TDS 물 잔량이 이걸 정한다.</li>` +
         `<li><b>2차 열처리 온도는 낮아도 된다.</b> 새 준비물만 붙이면 되므로 ${S.T} ℃가 아니라 200 ℃(반감기 ${f(half(200) / 60, 0)}분)로도 1~2시간이면 절반 이상 붙는다 — 이미 배선이 올라간 뒤라면 이쪽이 현실적이다.</li></ol>`;
     } else {
+      easy = `<div class="one">X선 없이 열만. 원래 있던 실라놀은 붙지만 <u>빈자리는 그대로</u> 남는다 — 이 값이 모든 갈래의 기준선.</div><div class="chips">` +
+        chip('same', '=', '빈자리 (미결합손)', sci(cur.db_left), sci(cur.db_left), '열은 이걸 못 채운다 — X선이 일할 자리') +
+        chip('good', '↑', '붙은 결합 (실록산)', '0', sci(cur.siloxane), `원래 있던 실라놀이 ${pc(cur.anneal)} 붙었다`) +
+        chip('same', '·', '접합에너지', '—', f(cur.dcb), '기준선', 'J/m²') + chip('same', '·', '보이드', '—', pc(cur.sam_void, 1), '붙으며 나온 물 중 막이 못 받은 몫') +
+        `</div>` + so(`<b>그래서</b> X선 갈래는 전부 이 ${f(cur.dcb)} J/m²와 견준다. ${L === 'D2' ? '2차 열처리만 더 해도 재료가 안 늘어 안 오른다.' : '빈자리 ' + sci(cur.db_left) + '개가 X선이 채울 몫이다 → A 버튼.'}`);
       title = `<span class="tag r">${L}</span>${LANE_KO[L]} — 기준선`; const pre0 = fwd(0, 'D1', S.cb, U0, { minutes: 0.0001 });
       body = `<table>${th(['접합 직후', `지금 ${L}`])}<tbody>` +
         tr('미결합손 (ESR)', [sci(pre0.db_left), sci(cur.db_left)], '열은 미결합손을 못 채운다 — 조사 전과 같다') +
@@ -371,7 +398,7 @@
         `<li><b>X선 없이 열만.</b> 원래 있던 실라놀 ${sci(ref.base_silanol)}개가 ${pc(cur.anneal)} 축합되어 접합E ${f(cur.dcb)}. 미결합손 ${sci(cur.db_left)}개는 그대로 남는다 — 이게 X선이 일할 자리다(A 버튼).</li>` +
         (L === 'D2' ? `<li><b>2차 열처리만 더 해도 안 오른다.</b> 준비물이 안 늘었으니 붙을 것도 없다 — C가 D2보다 높은 만큼이 X선의 몫이다.</li>` : `<li><b>이 값이 기준선.</b> 다섯 갈래 표에서 D1보다 얼마나 높은가만 본다. 세상마다 이 값도 흔들리므로(로트 편차) 같은 웨이퍼 짝쿠폰으로 잰다.</li>`) + `</ol>`;
     }
-    $('iface-why-h').innerHTML = title; $('iface-why').innerHTML = body;
+    $('iface-why-h').innerHTML = title; $('iface-why').innerHTML = `<div class="easy">${easy}</div><details class="more"><summary>자세히 — 표와 근거</summary>${body}</details>`;
   }
 
   // ── 5 교차 ─────────────────────────────────────────────
