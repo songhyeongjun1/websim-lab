@@ -95,7 +95,7 @@
     o = o || {}; const c = T(); const W = o.w || 520, ml = o.ml || 120, mr = 70, rh = o.rh || 24, H = items.length * rh + 10; const vmax = o.vmax || Math.max(...items.map((i) => Math.max(i.v, i.ref || 0))) * 1.05 || 1; const iw = W - ml - mr;
     let s = ''; items.forEach((it, i) => { const y = 5 + rh * i; s += txt(ml - 8, y + rh / 2 + 4, it.label, { a: 'end', fs: 11.5, fill: c.ink2 });
       if (isFinite(it.ref)) s += `<rect x="${ml}" y="${y + 3}" width="${Math.max(0, (it.ref / vmax) * iw)}" height="${rh - 6}" fill="${it.color || c.navy}" opacity=".25"/>`;
-      s += `<rect x="${ml}" y="${y + 6}" width="${Math.max(0, (it.v / vmax) * iw)}" height="${rh - 12}" fill="${it.color || c.navy}"/>` + txt(ml + (Math.max(it.v, it.ref || 0) / vmax) * iw + 6, y + rh / 2 + 4, it.text || f(it.v), { fs: 11, fill: c.ink, w: 700 }); });
+      s += `<rect x="${ml}" y="${y + 6}" width="${Math.max(0, (it.v / vmax) * iw)}" height="${rh - 12}" fill="${it.color || c.navy}"/>`; if (isFinite(it.mark)) s += `<line x1="${ml + (it.mark / vmax) * iw}" x2="${ml + (it.mark / vmax) * iw}" y1="${y + 1}" y2="${y + rh - 1}" stroke="${c.ink}" stroke-width="2"/>`; s += txt(ml + (Math.max(it.v, it.ref || 0, it.mark || 0) / vmax) * iw + 6, y + rh / 2 + 4, it.text || f(it.v), { fs: 11, fill: c.ink, w: 700 }); });
     return svgWrap(W, H, s, o.aria);
   }
   function scatter(pts, o) {
@@ -257,7 +257,7 @@
   // ── 4 계면 반응 ──────────────────────────────────────────
   let v3d = null, v3dFailed = false;
   function renderIface() {
-    const Wd = worlds(); const c = T(); const D = dose(), L = S.lane; const cur = fwd(D, L, S.cb, U0), ref = fwd(0, 'D1', S.cb, U0), pre = fwd(D, L, S.cb, U0, { minutes: 0.0001 });
+    const Wd = worlds(); const c = T(); const D = dose(), L = S.lane; const cur = fwd(D, L, S.cb, U0), ref = fwd(0, 'D1', S.cb, U0), pre = fwd(0, 'D1', S.cb, U0, { minutes: 0.0001 }), mid = fwd(D, L, S.cb, U0, { minutes: 0.0001 });
     $('iface-live').textContent = `접합에너지 ${f(cur.dcb)} J/m² · 보이드 ${pc(cur.sam_void, 1)}`;
     const st3 = { oxide_nm: cur.oxide_nm, siloxane: cur.siloxane, silanol: cur.silanol, si_h: cur.si_h, db_left: cur.db_left, water: cur.water_left + cur.water_trap, h2: cur.h2, voidF: cur.sam_void, colors: { si: '#D9B27C', o: '#D64545', h: '#F4F4F4', sio: tok('--m-sio'), oh: tok('--m-oh'), hbond: '#9AA0A6', film: S.shell ? tok('--shell') : filmColor(S.cb), oxide: tok('--oxide'), voidc: tok('--m-void') } };
     if (!v3d && !v3dFailed && window.VIZ3D) { try { v3d = window.VIZ3D.create($('v3d')); if (!v3d) v3dFailed = true; } catch (e) { v3dFailed = true; } }
@@ -272,7 +272,7 @@
     const xs = DOSES.map((x) => Math.max(x, 0.5)); const bw = DOSES.map((dd) => Wd.map((u) => fwd(dd, L, S.cb, u).dcb));
     $('iface-dose').innerHTML = lineChart(P.LANES.map((ln) => ({ x: xs, y: DOSES.map((dd) => fwd(dd, ln, S.cb, U0).dcb), color: cols[ln], label: ln, width: ln === L ? 2.6 : 1.5, dim: ln !== L, dash: ln.startsWith('D') })), { x: xs, lo: bw.map((a) => q(a, 25)), hi: bw.map((a) => q(a, 75)), color: cols[L] }, { h: 250, xlog: 1, xmin: 0.5, xlo: 0.5, xhi: 1000, xticks: [0.5, 1, 10, 100, 1000], xfmt: (v) => (v === 0.5 ? '0' : v), xlabel: 'X선 흡수선량 (kGy) — 0은 왼쪽 끝', ylabel: '접합에너지 (J/m²)', marks: [{ x: Math.max(D, 0.5), y: cur.dcb, color: cols[L], label: `${D} kGy · ${f(cur.dcb)}` }], hlines: [{ y: 2.2, label: '문헌 250 ℃ 실측 2.2~5.2 J/m²', color: c.gold }], aria: '선량 곡선' });
     const items = [['siloxane', '실록산', tok('--m-sio')], ['silanol', '실라놀', tok('--m-oh')], ['si_h', '규소–수소', tok('--m-h')], ['db_left', '미결합손', tok('--m-db')], ['water_left', '남은 물', tok('--m-h2o')], ['h2', '수소 분자', tok('--m-h2')]];
-    $('iface-state').innerHTML = hbars(items.map((it) => ({ label: it[1], v: cur[it[0]], ref: pre[it[0]], text: sci(cur[it[0]]), color: it[2] })), { ml: 90, aria: '계면 상태' });
+    $('iface-state').innerHTML = hbars(items.map((it) => ({ label: it[1], v: cur[it[0]], ref: pre[it[0]], mark: (L === 'D1' || L === 'D2') ? undefined : mid[it[0]], text: sci(cur[it[0]]), color: it[2] })), { ml: 90, aria: '계면 상태' }) + `<div class="cap">연한 막대 = 조사·열처리 전(접합 직후, 선량과 무관) · <b>검은 눈금</b> = 조사 뒤 열처리 직전 · 진한 막대 = 지금</div>`;
     const gain = Wd.map((u) => fwd(D, L, S.cb, u).dcb / fwd(0, 'D1', S.cb, u).dcb - 1); const sg = stat(gain); const hg = hist(gain.map((g) => Math.min(100 * g, 139)), -10, 140, 30);
     $('iface-hist').innerHTML = histogram(hg.edges, hg.counts, { h: 230, color: cols[L], xlabel: `X선 이득 % (${D} kGy 갈래 ${L} 대 무조사) — 세상 ${Wd.length}벌`, ylabel: '세상 수', vlines: [{ x: 100 * sg.m, label: `중앙 ${sg.m >= 0 ? '+' : ''}${(100 * sg.m).toFixed(0)} %` }, { x: 100 * P.LIT.noise_shear, label: `전단 잡음 ${100 * P.LIT.noise_shear} %`, color: c.mute, dash: 1, dy: 14 }], aria: '이득 분포' }) + `<div class="cap">잡음선 오른쪽 세상 <b>${pc(mean(gain.map((g) => (g > P.LIT.noise_shear ? 1 : 0))))}</b> — 전단 시험 한 번으로 보이는 비율</div>`;
     const opt = Wd.map((u) => { const e = DOSES.map((dd) => fwd(dd, 'A', S.cb, u).dcb); return { x: u.db0, y: Math.max(DOSES[e.indexOf(Math.max(...e))], 1), c: (Math.log(u.g_corr) - Math.log(0.5)) / (Math.log(5) - Math.log(0.5)) }; });
