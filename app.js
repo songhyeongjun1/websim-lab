@@ -222,6 +222,32 @@
     return svgWrap(W, H, s, '접합 뒤 계면 단면');
   }
   let v3dFilm = null, v3dFilmFailed = false, v3dIntro = null, v3dIntroFailed = false;
+  function renderFilmWhy(Wd) {
+    const Ws = Wd.length > 150 ? Wd.filter((_, i) => i % Math.ceil(Wd.length / 150) === 0) : Wd; const Dd = dose() || 30;
+    const o0 = { T: S.T, minutes: S.min, tdep: S.tdep }; const cfgs = [];
+    for (const cb of [0.14, 0.22, 0.30, 0.38]) { cfgs.push({ cb, ci: null, ts: 0 }); for (const ci of [0.10, 0.14, 0.18, 0.22]) for (const ts of [3, 5, 8, 12, 20]) cfgs.push({ cb, ci, ts }); }
+    const ev = (c) => { const o = Object.assign({}, o0, { ci: c.ci, ts: c.ts }); const dA = [], vA = [], dD = [], vD = []; Ws.forEach((u) => { const a = P.forward(Dd, 'A', c.cb, 100, u, o), d = P.forward(0, 'D1', c.cb, 100, u, o); dA.push(a.dcb); vA.push(a.sam_void); dD.push(d.dcb); vD.push(d.sam_void); }); return Object.assign({}, c, { dA: med(dA), vA: med(vA), dD: med(dD), vD: med(vD) }); };
+    const R = cfgs.map(ev); const byA = R.slice().sort((x, y) => y.dA - x.dA);
+    const isCur = (r) => (S.shell ? r.ci !== null && Math.abs(r.ci - S.ci) < 1e-9 && r.ts === S.ts : r.ci === null) && Math.abs(r.cb - S.cb) < 1e-9;
+    const isRec = (r) => r.cb === 0.38 && r.ci === 0.14 && r.ts === 5;
+    let curR = R.find(isCur); if (!curR) curR = ev({ cb: S.cb, ci: S.shell ? S.ci : null, ts: S.shell ? S.ts : 0 });
+    const rank = byA.filter((r) => r.dA > curR.dA).length + 1;
+    const bestSingle = R.filter((r) => r.ci === null).sort((x, y) => y.dA - x.dA)[0]; const bestBi = byA.find((r) => r.ci !== null);
+    const g = (cb, ci, ts) => R.find((r) => r.cb === cb && r.ci === ci && r.ts === ts);
+    const t3 = g(0.38, 0.14, 3), t20 = g(0.38, 0.14, 20), s10 = g(0.38, 0.10, 5), s22 = g(0.38, 0.22, 5), b22 = g(0.22, 0.14, 5), b38 = g(0.38, 0.14, 5);
+    const lab = (r) => r.ci === null ? `단층 ${Math.round(100 * r.cb)} %` : `${Math.round(100 * r.cb)}/${Math.round(100 * r.ci)} · ${r.ts} nm`;
+    const top = byA.slice(0, 8); if (!top.some(isCur) && curR) top.push(curR);
+    let t = `<table><thead><tr><th>순위</th><th>막</th><th>A ${Dd} kGy 접합E</th><th>보이드</th><th>무조사 접합E</th><th>보이드</th></tr></thead><tbody>`;
+    top.forEach((r) => { const rk = byA.filter((x) => x.dA > r.dA).length + 1; t += `<tr class="${isCur(r) ? 'cur' : isRec(r) ? 'rec' : ''}"><td>${rk}</td><td>${lab(r)}${isRec(r) ? ' <small>(추천)</small>' : ''}${isCur(r) ? ' <small>(지금)</small>' : ''}</td><td>${f(r.dA)}</td><td>${pc(r.vA, 1)}</td><td>${f(r.dD)}</td><td>${pc(r.vD, 1)}</td></tr>`; });
+    t += `</tbody></table>`;
+    const spread = byA[0].dA - byA[7].dA;
+    $('film-why-sub').textContent = `${cfgs.length}가지 막 × 세상 ${Ws.length} · 지금 열처리 ${S.T} ℃ ${S.min}분 · 증착 ${S.tdep} ℃ · 세상 중앙값 · 지금 막은 ${rank}위`;
+    $('film-why').innerHTML = `<div class="grid g11" style="margin:6px 0 0;align-items:start"><div>${t}<div class="cap" style="text-align:left">상위 8은 접합E ${f(spread, 2)} J/m² 안 — 잡음 폭이라 사실상 동률. 순위보다 아래 네 가지가 결론이다.</div></div><div class="why"><ol>` +
+      `<li><b>껍질 두께가 가장 큰 레버.</b> 38/14에서 3 nm ${f(t3.dA)} → 20 nm ${f(t20.dA)} (${f(t20.dA - t3.dA, 2)}). 축합수가 껍질을 뚫고 벌크로 가야 하므로 L_w(미지, 2~40 nm)보다 얇아야 한다 — <b>5 nm 이하</b>. 3 nm가 조금 더 높지만 반응 깊이 3 nm와 같아 벌크 탄소가 계면에 새기 시작하는 경계이고 증착 균일도 여유가 없다 → <b>5 nm</b>.</li>` +
+      `<li><b>껍질 탄소 10~22 %는 차이가 작다.</b> 38/·/5에서 10 % ${f(s10.dA)} ↔ 22 % ${f(s22.dA)}. 산화막 문턱(ox_cth, 미지 10~26 %) 아래이기만 하면 된다 — 14 %가 IST 하한이라 고른 값.</li>` +
+      `<li><b>벌크 탄소 22~38 %도 거의 같다.</b> ·/14/5에서 22 % ${f(b22.dA)} ↔ 38 % ${f(b38.dA)}. 벌크는 물 흡수만 맡으니 흡수 특성(abs_c)이 IST 범위 안이면 된다 — 하이닉스 현행 38 %를 그대로 쓰는 게 공정 변경이 적다.</li>` +
+      `<li><b>이중층은 어떤 단층보다 낫다.</b> 최선 단층 ${lab(bestSingle)} ${f(bestSingle.dA)}·보이드 ${pc(bestSingle.vA, 1)} vs 이중층 최선 ${lab(bestBi)} ${f(bestBi.dA)}·${pc(bestBi.vA, 1)}. 단층은 「탄소↑ 물 흡수 vs 탄소↑ 계면 산화막」이 한 값에 묶여 타협하지만 이중층은 둘을 갈라 맡긴다 — 이게 A축의 논리 전부다.</li></ol></div></div>`;
+  }
   function filmKey(r) { return keyRows('층 읽기 (위 → 아래)', [{ c: '#8C99A8', b: 'Si 웨이퍼', s: '상부 500 µm' }, { c: filmColor(S.cb), b: `SiCN 벌크 · 탄소 ${Math.round(S.cb * 100)} %`, s: S.tdep === 180 ? '증착 180 ℃ — 성긴 막' : '증착 350 ℃' }, ...(S.shell ? [{ c: filmColor(S.ci), b: `껍질 · 탄소 ${Math.round(S.ci * 100)} % · ${S.ts} nm`, s: `계면 반응이 보는 탄소 ${Math.round(r.c_iface * 100)} %` }] : []), { c: '#C99A2E', b: '접합 계면', s: `SiO₂ ${f(r.oxide_nm, 1)} nm · 흡수 ${pc(r.absorb)}`, show: 1 }, { c: '#1F3A6E', dot: 1, b: '남색 기둥 = 실록산 다리', s: '금색 = 실라놀 · 붉은 공 = O · 흰 공 = H' }, { c: '#8FBF8F', dot: 1, b: '초록 덩어리 = 보이드' }], '층 두께는 축척이 아니다 — 막 200 nm, 껍질·계면은 수 nm'); }
   function filmState(r) { return { shell: S.shell, ts: S.ts, cb: S.cb, ci: S.ci, oxide_nm: r.oxide_nm, siloxane: r.siloxane, silanol: r.silanol, water: r.water_left + r.water_trap, voidF: r.sam_void, colors: { si: '#8C99A8', bulk: filmColor(S.cb), shell: S.shell ? filmColor(S.ci) : filmColor(S.cb), oxide: tok('--oxide'), sio: tok('--m-sio'), oh: tok('--m-oh'), voidc: tok('--m-void') } }; }
   function renderFilm() {
@@ -251,6 +277,7 @@
     const winci = mean(pts.map((p) => (p.y > 0 ? 1 : 0)));
     $('film-lw').innerHTML = scatter(pts, { h: 250, xlog: 1, xlo: 2, xhi: 40, xticks: [2, 5, 10, 20, 40], ylo: -0.6, yhi: 0.9, hline: 0, xlabel: '물 침투 길이 L_w (nm, 로그)', ylabel: '이중층 − 껍질 단층 (J/m²)', vlines: [{ x: tsNow, label: `껍질 ${tsNow} nm` }], color: rampGold, cbar: ['흡수 잘함', '흡수 못함'], aria: '세상 산점도' }) + `<div class="cap">0 위(이중층이 이김) <b>${pc(winci)}</b> · 색 = 막이 물을 빨아들이는 특성 탄소(abs_c)</div>`;
     const win38 = mean(R.bi.w.map((r, i) => (r.dcb > R.s38.w[i].dcb * 1.02 ? 1 : 0))), winci2 = mean(R.bi.w.map((r, i) => (r.dcb > R.sci.w[i].dcb * 1.02 ? 1 : 0)));
+    renderFilmWhy(Wd);
     $('film-verdict').innerHTML = S.shell ? `<b>이중층 ${Math.round(S.cb * 100)}/${Math.round(S.ci * 100)} · ${S.ts} nm</b> — ${S.T} ℃·${S.min}분에서 보이드 <b>${pc(cur.sam_void, 1)}</b>(벌크만 단층의 ${pc(cur.sam_void / Math.max(R.s38.u0.sam_void, 1e-9))}), 접합에너지 <b>${f(cur.dcb)}</b> 대 단층 ${f(R.s38.u0.dcb)} / ${f(R.sci.u0.dcb)} J/m². 벌크 단층을 이기는 세상 <b>${pcse(win38, Wd.length)}</b>, 껍질 단층을 이기는 세상 <b>${pcse(winci2, Wd.length)}</b>. ${S.T < 230 || S.min < 60 ? '<b>이 열처리에서는 산화막·축합수 보이드가 아직 작아 셋이 잘 안 갈린다 — 「하이닉스 공정」 버튼으로 250 ℃·2 h를 보라.</b>' : '벌크 단층을 이기냐는 탄소 기울기의 부호가, 껍질 단층을 이기냐는 물 침투 길이(L_w)가 가른다.'}` : `<b>단층 ${Math.round(S.cb * 100)} %</b> — ${S.T} ℃·${S.min}분에서 접합에너지 <b>${f(cur.dcb)}</b> J/m², 보이드 <b>${pc(cur.sam_void, 1)}</b>, 계면 SiO₂ ${f(cur.oxide_nm, 1)} nm. 「이중층」을 켜면 같은 벌크 위에 저탄소 껍질을 얹어 견준다.`;
   }
 
@@ -263,6 +290,7 @@
     if (!v3d && !v3dFailed && window.VIZ3D) { try { v3d = window.VIZ3D.create($('v3d')); if (!v3d) v3dFailed = true; } catch (e) { v3dFailed = true; } }
     if (v3d) { v3d.update(st3); v3d.start(); $('v3d-key').innerHTML = keyRows('장면 읽기', [{ c: S.shell ? tok('--shell') : filmColor(S.cb), b: '위 SiCN 막 — 반투명', s: '계면이 보이게 들어 올렸다' }, { c: '#1F3A6E', dot: 1, b: '남색 기둥 + 붉은 O', s: '실록산 Si–O–Si — 위아래를 이은 결합' }, { c: '#D4A017', dot: 1, b: '금색 기둥 + O–H', s: '실라놀 — 마주 보고만 있는 것' }, { c: '#9AA0A6', dot: 1, b: '회색 짧은 기둥 + H', s: 'Si–H — 수소로 막힌 자리' }, { c: '#1B1F25', dot: 1, b: '검은 점', s: '전자가 남은 미결합손' }, { c: '#D64545', dot: 1, b: '붉은 O + 흰 H 둘', s: '물 분자 · H–H = 수소 분자' }, { c: '#8FBF8F', dot: 1, b: '초록 덩어리', s: '보이드' }], ''); badge('v3d-badge', `${LANE_KO[L]} · ${D} kGy`, `${f(cur.dcb, 2)} J/m²`); } else { $('v3d').innerHTML = drawXsec(cur); }
     $('iface-key').innerHTML = keyRow(cur);
+    renderIfaceWhy(D, L, cur, ref, mid, Wd);
     // 아레니우스 가속계수 — 신뢰성공학 문법
     const Ea = P.LIT.ea_cond, kB = P.KB; const AF = (T1, T2) => Math.exp(Ea / kB * (1 / (T1 + 273.15) - 1 / (T2 + 273.15))); const kT = (Tc) => U0.a0 * Math.exp(-Ea / (kB * (Tc + 273.15)));
     const Ts = [150, 175, 200, 225, 250, 275, 300]; const t95 = Ts.map((t) => Math.log(20) / kT(t) / 60); const afRef = 200;
@@ -280,6 +308,70 @@
     $('iface-best').innerHTML = scatter(opt.map((o, i) => ({ x: o.x, y: jit(o.y, i), c: o.c })), { h: 250, xlog: 1, xlo: 5e13, xhi: 4e14, xticks: [5e13, 1e14, 2e14, 4e14], xfmt: (v) => (v / 1e14).toFixed(1), ylog: 1, ylo: 1, yhi: 1000, yticks: [1, 10, 100, 1000], yfmt: (v) => (v === 1 ? '0' : v), xlabel: '미결합손 면밀도 db0 (×10¹⁴ /cm²) — ESR로 잰다', ylabel: '접합에너지가 최고인 선량 (kGy)', color: rampNavy, cbar: ['라디칼 수율 낮음', '높음'], trend: tr, aria: '최적 선량' });
     const allOpt = opt.map((o) => o.y);
     $('iface-verdict').innerHTML = `<b>${D} kGy · ${LANE_KO[L]}</b> — 접합에너지 <b>${f(cur.dcb)}</b> J/m²(무조사 ${f(ref.dcb)}), X선 이득 <b>${sg.m >= 0 ? '+' : ''}${pc(sg.m)}</b>(세상 25~75 % ${pc(sg.lo)}~${pc(sg.hi)}). 접합에너지가 가장 높아지는 선량은 세상 중앙 <b>${Math.round(med(allOpt))} kGy</b>(25~75 % ${Math.round(q(allOpt, 25))}~${Math.round(q(allOpt, 75))}) — 폭이 넓은 이유는 미결합손 면밀도 하나다. ${L === 'A' ? '조사한 뒤 열처리하는 갈래 — 조사가 만든 실라놀과 원래 있던 몫이 함께 이어 붙는다. 다섯 갈래 중 이 순서가 가장 유리하다.' : L === 'B' ? '열처리 뒤 조사하는 갈래 — 새로 생긴 실라놀이 축합될 기회가 없어 무조사와 거의 같다.' : L === 'C' ? '열처리 뒤 조사하고 다시 열처리 — 굳은 계면이라 조사 효율이 떨어진다.' : '조사 없는 대조군이다.'}`;
+  }
+
+  function renderIfaceWhy(D, L, cur, ref, mid, Wd) {
+    const opt = { T: S.T, minutes: S.min, tdep: S.tdep, ci: S.shell ? S.ci : null, ts: S.shell ? S.ts : 0 };
+    const F = (d, ln, u) => fwd(d, ln, S.cb, u || U0);
+    const cB = F(D, 'B'), cC = F(D, 'C'), cA = F(D, 'A'), c300 = F(300, 'B'), c1k = F(1000, 'A');
+    const eIdx = esrDoseIdx('B'); const eDose = DOSES[eIdx];
+    const eW = Wd.map((u) => { for (let i = 1; i < DOSES.length; i++) { const r = F(DOSES[i], 'B', u); if (r.db_left <= 0.02 * r.db) return DOSES[i]; } return 1000; });
+    const gA = stat(Wd.map((u) => F(D, 'A', u).dcb / F(0, 'D1', u).dcb - 1)), gC = stat(Wd.map((u) => F(D, 'C', u).dcb / F(0, 'D1', u).dcb - 1));
+    const wB = stat(Wd.map((u) => 1 - F(D, 'B', u).water_left / Math.max(F(0, 'D1', u).water_left, 1)));
+    const kB = P.KB, Ea = P.LIT.ea_cond; const half = (Tc) => Math.log(2) / (U0.a0 * Math.exp(-Ea / (kB * (Tc + 273.15)))); const hlRT = half(25) / 86400 / 365, hlT = half(S.T) / 60;
+    const unb = (r) => Math.max(r.silanol - r.siloxane, 0); const made = cur.silanol - cur.base_silanol;
+    const th = (cols) => `<thead><tr><th>항목</th>${cols.map((c) => `<th>${c}</th>`).join('')}<th class="d">뜻</th></tr></thead>`;
+    const tr = (lab, vals, note, hiIdx, warnIdx) => `<tr><td>${lab}</td>${vals.map((v, i) => `<td class="${i === hiIdx ? 'hi' : ''}${i === warnIdx ? ' warn' : ''}">${v}</td>`).join('')}<td class="d">${note}</td></tr>`;
+    let title = '', body = '';
+    if (L === 'A') {
+      title = `<span class="tag a">A</span>X선 ${D} kGy → 열처리 ${S.T} ℃ ${S.min}분 — 무엇이 이득인가`;
+      body = `<table>${th(['무조사 D1', 'X선 뒤 · 열처리 전', '지금 A'])}<tbody>` +
+        tr('미결합손 (ESR)', [sci(ref.db_left), sci(mid.db_left), sci(cur.db_left)], 'X선의 •OH가 채운 자리 — 열은 이걸 못 채운다', 1) +
+        tr('실라놀 · 안 붙은 준비물', [sci(unb(ref)), sci(unb(mid)), sci(unb(cur))], `X선이 새로 만든 실라놀 ${sci(made)} — 열처리가 이걸 이어 붙인다`, 1) +
+        tr('실록산 · 붙은 결합', [sci(ref.siloxane), sci(mid.siloxane), sci(cur.siloxane)], `열만 주면 원래 있던 몫만 붙는다 → X선을 먼저 주면 +${pc(cur.siloxane / Math.max(ref.siloxane, 1) - 1)}`, 2) +
+        tr('남은 물', [sci(ref.water_left), sci(mid.water_left), sci(cur.water_left)], '방사분해로 쓰이고, 열처리 때 막이 흡수') +
+        tr('보이드', [pc(ref.sam_void, 1), '—', pc(cur.sam_void, 1)], '붙은 만큼 나온 축합수 — 막이 못 받으면 남는다', undefined, cur.sam_void > ref.sam_void + 0.03 ? 2 : undefined) +
+        tr('접합에너지 J/m²', [f(ref.dcb), '—', f(cur.dcb)], `+${pc(gA.m)} (세상 25~75 % ${pc(gA.lo)}~${pc(gA.hi)})`, 2) + `</tbody></table><ol>` +
+        `<li><b>X선은 재료를, 열은 조립을.</b> 접합 직후 계면엔 미결합손 ${sci(ref.db_left)}개가 있고 열만으론 그대로 남는다(ESR로 보이는 값). X선이 물을 쪼개 만든 •OH가 그 자리를 실라놀로 바꾸고(+${sci(made)}), 그 다음 열이 원래 몫과 함께 이어 붙인다 — 붙은 결합 ${sci(ref.siloxane)} → ${sci(cur.siloxane)}.</li>` +
+        `<li><b>선량은 ESR이 정한다.</b> 이 막의 미결합손이 소진되는 선량 ≈ <b>${eDose} kGy</b>(세상 25~75 % ${Math.round(q(eW, 25))}~${Math.round(q(eW, 75))}). 그 위로는 •OH가 갈 곳이 없고 •H끼리 H₂가 되어 보이드로 간다 — 1000 kGy면 보이드 ${pc(c1k.sam_void, 1)}, 접합E ${f(c1k.dcb)}.</li>` +
+        `<li><b>열이 뒤따라야 한다.</b> ${S.T} ℃에서 축합 반감기 ${hlT < 60 ? f(hlT, 0) + '분' : f(hlT / 60, 1) + '시간'}, 상온이면 ${hlRT > 1 ? f(hlRT, 0) + '년' : f(hlRT * 365, 0) + '일'} — 같은 선량을 열처리 <i>뒤</i>에 주면(갈래 B) 준비물만 남고 접합E는 ${f(cB.dcb)}로 그대로다. 그 B의 이득은 다른 데 있다(B 버튼).</li></ol>`;
+    } else if (L === 'B') {
+      title = `<span class="tag b">B</span>열처리 뒤 X선 ${D} kGy — 접합에너지는 안 변한다. 그러면 무엇이 이득인가`;
+      body = `<table>${th(['무조사 D1', '지금 B', 'B 뒤 2차 열처리 = C'])}<tbody>` +
+        tr('남은 물', [sci(ref.water_left), sci(cB.water_left), sci(cC.water_left)], `물 −${pc(1 - cB.water_left / Math.max(ref.water_left, 1))} — 사라진 게 아니라 벽에 붙은 –OH·Si–H가 됨`, 1) +
+        tr('실라놀 · 안 붙은 준비물', [sci(unb(ref)), sci(unb(cB)), sci(unb(cC))], '붙일 열이 없어 그대로 남는다 → 2차 열처리가 붙인다', 1) +
+        tr('Si–H', [sci(ref.si_h), sci(cB.si_h), sci(cC.si_h)], '•H가 미결합손을 막은 자리 — 물은 줄지만 결합도 아니다') +
+        tr('H₂', [sci(ref.h2), sci(cB.h2), sci(cC.h2)], '미결합손이 다 차면 •H끼리 만나 기체가 된다', undefined, cB.h2 > 1e12 ? 1 : undefined) +
+        tr('미결합손 (ESR)', [sci(ref.db_left), sci(cB.db_left), sci(cC.db_left)], '열 없이 X선만 한 일이 그대로 찍힌다', 1) +
+        tr('보이드', [pc(ref.sam_void, 1), pc(cB.sam_void, 1), pc(cC.sam_void, 1)], 'H₂가 쌓이기 전까지는 그대로', undefined, cB.sam_void > ref.sam_void + 0.02 ? 1 : undefined) +
+        tr('접합에너지 J/m²', [f(ref.dcb), f(cB.dcb), f(cC.dcb)], `B는 ${f(cB.dcb / ref.dcb - 1 >= 0 ? cB.dcb / ref.dcb - 1 : 0, 2) === '0.00' ? '그대로' : pc(cB.dcb / ref.dcb - 1)} · C는 +${pc(gC.m)} (세상 ${pc(gC.lo)}~${pc(gC.hi)})`, 2) + `</tbody></table><ol>` +
+        `<li><b>접합E가 그대로인 이유는 붙일 열이 없어서다.</b> X선은 여기서도 실라놀 ${sci(unb(cB) - unb(ref))}개를 만든다 — 그런데 축합(Si–OH + HO–Si → Si–O–Si + H₂O)의 활성화 에너지 0.85 eV로 상온 반감기가 <b>${f(hlRT, 0)}년</b>이다. 준비물만 쌓이고 조립이 안 된다. <i>모형의 가정</i>이다 — 방사선이 열 없이 가교를 만드는 무열 축합(저k SiOC의 e-beam·UV 경화처럼)이 있으면 B가 산다. 그래서 B 시편이 격자에 들어 있다.</li>` +
+        `<li><b>그래도 계면 물이 −${pc(wB.m)}(세상 ${pc(wB.lo)}~${pc(wB.hi)}) 준다 — 이득은 「지금 강도」가 아니라 「신뢰성」이다.</b> 돌아다니는 H₂O가 표면에 고정된 –OH가 되면 (1) 뒤따르는 BEOL·리플로 열에서 블리스터·보이드가 될 재료가 줄고, 오히려 그 열에 붙는다, (2) Si–O–Si의 응력부식 균열(물이 하중 아래 결합을 끊음)이 느려진다 — DCB 「지금 값」은 같아도 수명이 다르다, (3) 옆 Cu 패드의 부식·HAST 불량이 준다. 셋 다 모형 밖 — 습도 2조건 DCB·HAST로 잰다.</li>` +
+        `<li><b>상한은 미결합손 소진 선량 ≈ ${eDose} kGy.</b> 그 위로는 H₂가 쌓인다 — 300 kGy면 H₂ ${sci(c300.h2)}, 보이드 ${pc(c300.sam_void, 1)}, 접합E ${f(c300.dcb)}. 물 하나 없앤 자리에 기체가 생기면 더 나쁘다.</li>` +
+        `<li><b>원래 목적(이미 붙은 웨이퍼를 사후 강화)을 살리는 길 = 갈래 C.</b> B 뒤 ${S.T} ℃ ${S.min}분을 한 번 더 주면 그 준비물이 붙어 접합E ${f(cC.dcb)}(+${pc(gC.m)}). A(${f(cA.dcb)})보다 낮은 건 굳은 계면의 조사 효율 c_pen(0.4~1.0, 미지)과 1차 열처리가 이미 물을 뺀 몫 때문 — 후자는 모형이 아직 안 깎아 C는 상한에 가깝다.</li>` +
+        `<li><b>B는 가장 깨끗한 측정이다.</b> 열이 끝난 뒤라 X선이 한 일만 ESR(미결합손 ${sci(ref.db_left)} → ${sci(cB.db_left)})·TDS(물·H₂)에 찍힌다. 7번 「측정의 값어치」 1위 「조사 후 ESR 감소량」을 오염 없이 재는 시편이 B다.</li></ol>`;
+    } else if (L === 'C') {
+      title = `<span class="tag a">C</span>열처리 → X선 ${D} kGy → 2차 열처리 — 사후 강화`;
+      body = `<table>${th(['무조사 D1', 'B (2차 열처리 전)', '지금 C', 'A (비교)'])}<tbody>` +
+        tr('실라놀 · 안 붙은 준비물', [sci(unb(ref)), sci(unb(cB)), sci(unb(cC)), sci(unb(cA))], 'B에서 남은 준비물을 2차 열처리가 붙인다', 2) +
+        tr('실록산 · 붙은 결합', [sci(ref.siloxane), sci(cB.siloxane), sci(cC.siloxane), sci(cA.siloxane)], '굳은 계면이라 조사 효율 c_pen(0.4~1.0)만큼만', 2) +
+        tr('남은 물', [sci(ref.water_left), sci(cB.water_left), sci(cC.water_left), sci(cA.water_left)], '') +
+        tr('보이드', [pc(ref.sam_void, 1), pc(cB.sam_void, 1), pc(cC.sam_void, 1), pc(cA.sam_void, 1)], '') +
+        tr('접합에너지 J/m²', [f(ref.dcb), f(cB.dcb), f(cC.dcb), f(cA.dcb)], `C +${pc(gC.m)} (세상 ${pc(gC.lo)}~${pc(gC.hi)}) · A +${pc(gA.m)}`, 2) + `</tbody></table><ol>` +
+        `<li><b>이미 붙은 웨이퍼를 나중에 강화하는 순서</b> — 공정 레시피를 안 바꾸고 뒤에 붙이는 단계라 실용성이 가장 크다. B에서 만든 실라놀 ${sci(unb(cB) - unb(ref))}개를 2차 열처리가 붙인다.</li>` +
+        `<li><b>A보다 낮은 이유 둘.</b> (1) 굳은 계면의 조사 효율 c_pen — 문헌 없는 미지수라 폭이 넓다(${pc(gC.lo)}~${pc(gC.hi)}). (2) 1차 열처리가 계면 물을 이미 뺐으니 방사분해 재료가 적다 — 모형은 이 감소를 아직 안 깎아 지금 값은 상한이다. 열처리 후 TDS 물 잔량이 이걸 정한다.</li>` +
+        `<li><b>2차 열처리 온도는 낮아도 된다.</b> 새 준비물만 붙이면 되므로 ${S.T} ℃가 아니라 200 ℃(반감기 ${f(half(200) / 60, 0)}분)로도 1~2시간이면 절반 이상 붙는다 — 이미 배선이 올라간 뒤라면 이쪽이 현실적이다.</li></ol>`;
+    } else {
+      title = `<span class="tag r">${L}</span>${LANE_KO[L]} — 기준선`; const pre0 = fwd(0, 'D1', S.cb, U0, { minutes: 0.0001 });
+      body = `<table>${th(['접합 직후', `지금 ${L}`])}<tbody>` +
+        tr('미결합손 (ESR)', [sci(pre0.db_left), sci(cur.db_left)], '열은 미결합손을 못 채운다 — 조사 전과 같다') +
+        tr('실록산 · 붙은 결합', [sci(pre0.siloxane), sci(cur.siloxane)], `원래 있던 실라놀 ${sci(ref.base_silanol)}만 붙는다 (축합 ${pc(cur.anneal)})`, 1) +
+        tr('남은 물', [sci(pre0.water_left), sci(cur.water_left)], '막이 흡수한 만큼 준다') +
+        tr('보이드', ['—', pc(cur.sam_void, 1)], '') + tr('접합에너지 J/m²', ['—', f(cur.dcb)], '모든 X선 갈래는 이 값과 견준다', 1) + `</tbody></table><ol>` +
+        `<li><b>X선 없이 열만.</b> 원래 있던 실라놀 ${sci(ref.base_silanol)}개가 ${pc(cur.anneal)} 축합되어 접합E ${f(cur.dcb)}. 미결합손 ${sci(cur.db_left)}개는 그대로 남는다 — 이게 X선이 일할 자리다(A 버튼).</li>` +
+        (L === 'D2' ? `<li><b>2차 열처리만 더 해도 안 오른다.</b> 준비물이 안 늘었으니 붙을 것도 없다 — C가 D2보다 높은 만큼이 X선의 몫이다.</li>` : `<li><b>이 값이 기준선.</b> 다섯 갈래 표에서 D1보다 얼마나 높은가만 본다. 세상마다 이 값도 흔들리므로(로트 편차) 같은 웨이퍼 짝쿠폰으로 잰다.</li>`) + `</ol>`;
+    }
+    $('iface-why-h').innerHTML = title; $('iface-why').innerHTML = body;
   }
 
   // ── 5 교차 ─────────────────────────────────────────────
@@ -439,15 +531,16 @@
   // ── 바로 가기 ───────────────────────────────────────────
   const PRESETS = {
     beam: [['교내 X선 (100 kVp · 500 µm · 36 Gy/s)', { kvp: 100, top: 500, cut: 12, rate: 36 }], ['여과판 Cu', { cut: 40 }], ['여과판 Al', { cut: 25 }], ['얇은 웨이퍼 200 µm', { top: 200 }], ['보수적 선량률 10 Gy/min', { rate: 0 }], ['고관전압 160 kVp', { kvp: 160 }]],
-    film: [['하이닉스 공정 250 ℃ · 2 h', { T: 250, min: 120, tdep: 350 }], ['교내 열처리 200 ℃ · 30분', { T: 200, min: 30 }], ['이중층 추천 38/14 · 5 nm', { shell: 1, cb: 0.38, ci: 0.14, ts: 5 }], ['단층 38 %', { shell: 0, cb: 0.38 }], ['단층 14 %', { shell: 0, cb: 0.14 }], ['저온 증착 180 ℃', { tdep: 180 }], ['두꺼운 껍질 20 nm', { shell: 1, ts: 20 }]],
-    iface: [['최적 선량 (지금 막)', 'best'], ['무조사 D1', { doseIdx: 0, lane: 'D1' }], ['30 kGy · A', { doseIdx: 4, lane: 'A' }], ['100 kGy · A', { doseIdx: 7, lane: 'A' }], ['300 kGy · A (과다)', { doseIdx: 9, lane: 'A' }], ['갈래 B (열처리 → X선)', { lane: 'B' }], ['하이닉스 공정 250 ℃ · 2 h', { T: 250, min: 120 }]],
+    film: [['추천 이중층 38/14 · 5 nm (250 ℃ · 2 h)', { shell: 1, cb: 0.38, ci: 0.14, ts: 5, tdep: 350, T: 250, min: 120 }], ['얇은 껍질 3 nm — 반응 깊이 한계', { shell: 1, cb: 0.38, ci: 0.14, ts: 3 }], ['두꺼운 껍질 20 nm — 물이 벌크로 못 감', { shell: 1, cb: 0.38, ci: 0.14, ts: 20 }], ['최선 단층 22 %', { shell: 0, cb: 0.22 }], ['현행 단층 38 % — 보이드 최악', { shell: 0, cb: 0.38 }], ['교내 200 ℃ · 30분 — 셋이 안 갈림', { T: 200, min: 30 }], ['저온 증착 180 ℃ (X선이 메울 대상)', { tdep: 180 }], ['두꺼운 껍질 20 nm', { shell: 1, ts: 20 }]],
+    iface: [[() => `A · 최적 — X선 ${DOSES[bestDoseIdx()]} kGy → 열처리`, () => ({ lane: 'A', doseIdx: bestDoseIdx() })], ['A · 교내 1시간 30 kGy → 열처리', { lane: 'A', doseIdx: 4 }], [() => `B · 사후 조사 — 미결합손 소진 ${DOSES[esrDoseIdx()]} kGy`, () => ({ lane: 'B', doseIdx: esrDoseIdx() })], ['B · 과조사 300 kGy — H₂ 쌓임', { lane: 'B', doseIdx: 9 }], [() => `C · 사후 강화 — B 뒤 2차 열처리`, () => ({ lane: 'C', doseIdx: esrDoseIdx() })], ['D1 · 무조사 기준', { lane: 'D1', doseIdx: 0 }], ['열처리 250 ℃ · 2 h', { T: 250, min: 120 }], ['교내 200 ℃ · 30분', { T: 200, min: 30 }]],
     cross: [['이중층 추천 + 최적 선량', 'bestbi'], ['저온 180 ℃ 막', { tdep: 180 }], ['고온 350 ℃ 막', { tdep: 350 }], ['단층 38 % + 30 kGy', { shell: 0, cb: 0.38, doseIdx: 4 }]],
     exp: [['3장 · 4쿠폰 (권장)', { nw: 3, nr: 4 }], ['4장 · 4쿠폰', { nw: 4, nr: 4 }], ['6장 · 2쿠폰', { nw: 6, nr: 2 }], ['2장 · 8쿠폰 (쿠폰만 늘림)', { nw: 2, nr: 8 }], ['엄격 α 0.01', { alpha: 0.01 }], ['탐색 α 0.10', { alpha: 0.10 }]],
     ml: [['빠르게 (세상 120 · 나무 20)', { mlw: 120, mlt: 20 }], ['정밀 (세상 320 · 나무 60)', { mlw: 320, mlt: 60 }], ['쿠폰 4개', { mlr: 4 }]],
   };
   function bestDoseIdx() { const Wd = worlds(); const picks = Wd.map((u) => { const e = DOSES.map((dd) => fwd(dd, 'A', S.cb, u).dcb); return e.indexOf(Math.max(...e)); }); return Math.round(med(picks)); }
-  function applyPreset(v) { if (v === 'best') { S.lane = 'A'; S.doseIdx = bestDoseIdx(); } else if (v === 'bestbi') { Object.assign(S, { shell: 1, cb: 0.38, ci: 0.14, ts: 5, T: 250, min: 120, lane: 'A' }); S.doseIdx = bestDoseIdx(); } else Object.assign(S, v); syncControls(); allDirty(); render(); }
-  function renderPresets() { for (const [pid, list] of Object.entries(PRESETS)) { const el = $('pre-' + pid); if (!el) continue; el.innerHTML = `<span class="lbl">바로 가기</span>` + list.map((p, i) => `<button data-i="${i}">${p[0]}</button>`).join(''); el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => applyPreset(list[+b.dataset.i][1]))); } }
+  function esrDoseIdx(lane) { const L = lane || 'B'; for (let i = 1; i < DOSES.length; i++) { const r = fwd(DOSES[i], L, S.cb, U0); if (r.db_left <= 0.02 * r.db) return i; } return DOSES.length - 1; }
+  function applyPreset(v) { if (typeof v === 'function') v = v(); if (v === 'best') { S.lane = 'A'; S.doseIdx = bestDoseIdx(); } else if (v === 'bestbi') { Object.assign(S, { shell: 1, cb: 0.38, ci: 0.14, ts: 5, T: 250, min: 120, lane: 'A' }); S.doseIdx = bestDoseIdx(); } else Object.assign(S, v); syncControls(); allDirty(); render(); }
+  function renderPresets(only) { for (const [pid, list] of Object.entries(PRESETS)) { if (only && pid !== only) continue; const el = $('pre-' + pid); if (!el) continue; el.innerHTML = `<span class="lbl">바로 가기</span>` + list.map((p, i) => `<button data-i="${i}">${typeof p[0] === 'function' ? p[0]() : p[0]}</button>`).join(''); el.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => applyPreset(list[+b.dataset.i][1]))); } }
 
   // ── 렌더 · 이벤트 ─────────────────────────────────────
   function render() {
@@ -455,7 +548,7 @@
     if (p === 'intro' && dirty.intro) { renderIntro(); dirty.intro = 0; }
     if (p === 'beam' && dirty.beam) { renderBeam(); dirty.beam = 0; }
     if (p === 'film' && dirty.film) { renderFilm(); dirty.film = 0; }
-    if (p === 'iface' && dirty.iface) { renderIface(); dirty.iface = 0; }
+    if (p === 'iface' && dirty.iface) { renderPresets('iface'); renderIface(); dirty.iface = 0; }
     if (p === 'cross' && dirty.cross) { renderCross(); dirty.cross = 0; }
     if (p === 'exp' && dirty.exp) { renderExp(); dirty.exp = 0; }
     if (p === 'out' && dirty.out) { renderOut(); dirty.out = 0; }

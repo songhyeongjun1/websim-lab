@@ -119,6 +119,15 @@ details.more{margin:4px 0 12px;border:1px dashed var(--line2);border-radius:var(
 details.more>summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--navy);list-style:none}
 details.more>summary::before{content:'\25B8  ';color:var(--mute)} details.more[open]>summary::before{content:'\25BE  '}
 details.more[open]>summary{margin-bottom:10px}
+.why table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 8px}
+.why th,.why td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.why th{color:var(--mute);font-weight:600;font-size:11.5px} .why td:first-child,.why th:first-child{text-align:left;font-weight:700;color:var(--ink2)}
+.why td.d,.why th.d{text-align:left;white-space:normal;color:var(--mute);font-weight:400;font-size:11.5px;min-width:180px}
+.why td.hi{background:var(--navybg);font-weight:700;color:var(--navy)} .why td.warn{color:var(--bad);font-weight:700}
+.why ol{margin:6px 0 0;padding-left:20px;font-size:13px;line-height:1.6} .why ol li{margin-bottom:5px} .why ol b{color:var(--ink)}
+.why .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;margin-right:6px;vertical-align:1px}
+.why .tag.a{background:var(--navybg);color:var(--navy)} .why .tag.b{background:var(--goldbg);color:var(--gold2)} .why .tag.r{background:#F8E3E0;color:var(--bad)}
+.why table tr.cur td{background:var(--goldbg)} .why table tr.rec td{background:var(--navybg)}
 .stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 8px}
 .stat3>div{border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;background:var(--surf2)}
 .stat3 .l{font-size:11px;color:var(--mute)} .stat3 .v{font-size:20px;font-weight:900;color:var(--navy)} .stat3 .s{font-size:11px;color:var(--mute)}
@@ -251,6 +260,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
         <div class="fig"><h3>껍질 지도 — 탄소 × 두께<small id="film-map-sub">보이드 % (세상 중앙)</small><span class="seg" id="mapMetric" style="margin:6px auto 0;display:inline-flex"><button data-v="void" aria-pressed="true">보이드</button><button data-v="dcb">접합에너지</button><button data-v="win">단층을 이기는 비율</button></span></h3><div id="film-map"></div></div>
         <div class="fig"><h3>왜 예측이 갈리나 — 물 침투 길이<small>점 하나 = 미지수 한 벌 · 세로선 = 껍질 두께</small></h3><div id="film-lw"></div><div class="cap">껍질보다 물이 깊이 들어가야(오른쪽) 벌크가 물을 받는다 — 이 값은 아무도 안 쟀고 <b>TDS로 잰다</b></div></div>
       </div>
+      <div class="fig" style="margin-bottom:12px"><h3>왜 이 막인가 — 벌크 탄소 × 껍질 탄소 × 껍질 두께를 다 돌려 본 결과<small id="film-why-sub"></small></h3><div id="film-why"></div></div>
       <div class="verdict gold" id="film-verdict"></div>
     </section>
 
@@ -264,6 +274,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
           <div class="ctl red"><label>열처리 온도 <span class="v" id="v-T2">250 ℃</span></label><input type="range" id="T2" min="150" max="300" step="10" value="250"></div>
           <div class="ctl red"><label>열처리 시간 <span class="v" id="v-min2">120 분</span></label><input type="range" id="min2" min="10" max="120" step="10" value="120"></div>
         </div></div>
+      <div class="fig why" style="margin-bottom:12px"><h3 id="iface-why-h"></h3><div id="iface-why"></div></div>
       <div class="grid g2">
         <div class="fig"><h3>계면을 확대하면 — 붙은 결합과 못 붙은 결합<small>드래그로 돌리고 휠로 당긴다 · 위 막을 들어 올려 계면을 본다</small></h3><div class="v3dwrap"><div class="v3d" id="v3d"><div class="hint">글리프 하나 ≈ 6×10¹² cm⁻² · 드래그 회전</div></div><div class="v3dkey" id="v3d-key"></div><div class="v3dbadge" id="v3d-badge"></div></div>
           <div class="keyrow" id="iface-key"></div>
